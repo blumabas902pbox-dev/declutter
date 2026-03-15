@@ -13,7 +13,7 @@
         :root {
             --bg: #e0e0e0;
             --text: #1d1d1d;
-            --container-width: 2000px;
+            --container-width: 1000px;
         }
         body.dark-mode {
             --bg: #1d1d1d;
@@ -49,7 +49,7 @@
         
         .logo {
             font-size: clamp(1.5rem, 5vw, 3rem);
-            font-weight: 1000;
+            font-weight: 900;
             text-transform: uppercase;
         }
         
@@ -196,10 +196,19 @@
         }
         
         @media (max-width: 600px) {
-            .hero-title { margin-top: 30px; }
-            header { flex-direction: row; }
+           .controls {
+           display: grid;
+           grid-template-columns: 1fr 1fr;
+           gap: 10px;
         }
+        
+        .app-window {
+        padding: 20px;
+    }
+}
+
     </style>
+    
 </head>
 <body>
 
@@ -246,5 +255,6 @@
     </div>
 
     <script src="Declutter.js"></script>
+    
 </body>
 </html>
