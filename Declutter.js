@@ -1,5 +1,4 @@
 /*Programmer: Bryan Jay M. Lumabas*/
-
 const taskInput = document.getElementById('taskInput');
 const inputWrapper = document.getElementById('inputWrapper');
 const taskList = document.getElementById('task-list');
@@ -53,9 +52,9 @@ function updateEmotionalStatus() {
     const total = tasks.length;
     const latestTask = total > 0 ? tasks[tasks.length - 1].text.toLowerCase() : "";
 
-    if (latestTask.includes("win") || latestTask.includes("party") || latestTask.includes("dance") || latestTask.includes("celebrate") || latestTask.includes("sing")) {
+    if (latestTask.includes("be") || latestTask.includes("party") || latestTask.includes("dance") || latestTask.includes("celebrate") || latestTask.includes("sing")) {
         statusDisplay.innerText = "STATUS: ECSTATIC";
-    } else if (latestTask.includes("change") || latestTask.includes("risk") || latestTask.includes("end") || latestTask.includes("dare") || latestTask.includes("courage")) {
+    } else if (latestTask.includes("believe") || latestTask.includes("risk") || latestTask.includes("love") || latestTask.includes("new") || latestTask.includes("courage")) {
         statusDisplay.innerText = "STATUS: FEARLESS";
     } else if (latestTask.includes("thanks") || latestTask.includes("owe") || latestTask.includes("blessed") || latestTask.includes("appreciate") || latestTask.includes("kind")) {
         statusDisplay.innerText = "STATUS: GRATEFUL";
@@ -63,11 +62,11 @@ function updateEmotionalStatus() {
         statusDisplay.innerText = "STATUS: INSPIRED";
     } else if (latestTask.includes("unwind") || latestTask.includes("breathe") || latestTask.includes("coffee") || latestTask.includes("sleep") || latestTask.includes("listen")) {
         statusDisplay.innerText = "STATUS: RELAXED";
-    } else if (latestTask.includes("tired") || latestTask.includes("urgent") || latestTask.includes("heavy") || latestTask.includes("much") || latestTask.includes("deadline")) {
+    } else if (latestTask.includes("tired") || latestTask.includes("urgent") || latestTask.includes("heavy") || latestTask.includes("so many") || latestTask.includes("deadline")) {
         statusDisplay.innerText = "STATUS: EXHAUSTED";
-    } else if (latestTask.includes("needs") || latestTask.includes("pain") || latestTask.includes("tears") || latestTask.includes("sad") || latestTask.includes("lonely")) {
+    } else if (latestTask.includes("never") || latestTask.includes("can't") || latestTask.includes("tears") || latestTask.includes("sad") || latestTask.includes("lonely")) {
         statusDisplay.innerText = "STATUS: HEARTBROKEN";
-    } else if (latestTask.includes("didn't") || latestTask.includes("can't") || latestTask.includes("hate") || latestTask.includes("afraid") || latestTask.includes("unsure")) {
+    } else if (latestTask.includes("afraid") || latestTask.includes("not") || latestTask.includes("hate") || latestTask.includes("shouldn't") || latestTask.includes("worry")) {
         statusDisplay.innerText = "STATUS: INSECURE";
     } else if (latestTask.includes("remember") || latestTask.includes("when") || latestTask.includes("visiting") || latestTask.includes("back") || latestTask.includes("miss")) {
         statusDisplay.innerText = "STATUS: NOSTALGIC";
@@ -113,7 +112,7 @@ function deleteTask(id) {
         saveToHistory();
         tasks = tasks.filter(t => t.id !== id);
         deletedCount++;
-        showToast("SUCCESS: Eraser was used to wipe the board.");
+        showToast("SUCCESS: The eraser was used to wipe the board successfully.");
         renderTasks();
     }
 }
@@ -143,23 +142,31 @@ function editTask(id) {
 function handleEditSave(id, newText) {
     const taskItem = tasks.find(t => t.id === id);
     const trimmedText = newText.trim();
-    if (trimmedText === "" || trimmedText === taskItem.text) {
-        editingId = null;
+
+    if (trimmedText === "") {
+        showToast("ERROR: Task cannot be empty!", true);
         renderTasks();
         return;
     }
-    const isDuplicate = tasks.some(t => t.text.toLowerCase() === trimmedText.toLowerCase() && t.id !== id);
+
+    const isDuplicate = tasks.some(t => 
+        t.text.toLowerCase() === trimmedText.toLowerCase() && t.id !== id
+    );
+
     if (isDuplicate) {
-        showToast("ERROR: That particular idea already exists!", true);
-        editingId = null;
-        renderTasks();
+        showToast("ERROR: This particular idea already exists!", true);
+        renderTasks(); 
         return;
     }
-    saveToHistory();
-    taskItem.text = trimmedText;
-    editedCount++;
+
+    if (trimmedText !== taskItem.text) {
+        saveToHistory();
+        taskItem.text = trimmedText;
+        editedCount++;
+        showToast("SUCCESS: Task updated.");
+    }
+    
     editingId = null;
-    showToast("SUCCESS: The thought has refined.");
     renderTasks();
 }
 
@@ -207,7 +214,7 @@ function resetApp() {
 function sweepCompleted() {
     const completedTasks = tasks.filter(t => t.completed);
     if (completedTasks.length === 0) return showToast("ERROR: No finished tasks to sweep.", true);
-    if (confirm(`Sweep all ${completedTasks.length} completed items?`)) {
+    if (confirm(`Are you sure do you want to delete or sweep ${completedTasks.length} completed items?`)) {
         saveToHistory();
         deletedCount += completedTasks.length;
         tasks = tasks.filter(t => !t.completed);
@@ -308,10 +315,10 @@ function renderTasks() {
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="task-action-btn" onclick="editTask(${task.id})" ${isEditing ? 'disabled style="opacity:0.5"' : ''}>
-                    <i class="fa-solid fa-marker"></i>
+                    <i class="fa-solid fa-pen-to-square"></i>
                 </button>
                 <button class="task-action-btn" onclick="deleteTask(${task.id})" ${isEditing ? 'disabled style="opacity:0.5"' : ''}>
-                    <i class="fa-solid fa-eraser"></i>
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
         `;
@@ -363,11 +370,20 @@ renderTasks();
 
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Delete' && document.activeElement !== taskInput) {
-        const selectedCount = tasks.filter(t => t.completed).length;
-        if (selectedCount > 0) {
-            if (confirm(`Sweep away all ${selectedCount} selected tasks?`)) {
-                sweepCompleted(); 
-            }
+        const selectedTasks = tasks.filter(t => t.completed);
+        const count = selectedTasks.length;
+
+        if (count === 0) {
+            showToast("ERROR: Select tasks using checkboxes first!", true);
+            return;
+        }
+
+            if (confirm(`Are you sure do you want to delete these ${count} selected tasks?`)) {
+            saveToHistory();
+            deletedCount += count;
+            tasks = tasks.filter(t => !t.completed);
+            showToast(`SUCCESS: Removed ${count} tasks.`);
+            renderTasks();
         }
     }
 });
@@ -388,3 +404,112 @@ taskList.addEventListener('touchstart', (e) => {
 
 taskList.addEventListener('touchend', () => clearTimeout(pressTimer));
 taskList.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioCtx();
+
+const playSound = (type, volume = 0.5) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+
+    switch(type) {
+        case 'success':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+            break;
+        case 'failed':
+        case 'error':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+        break;
+        case 'pixar':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+            break;
+        case 'click':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+            break;
+        case 'type':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150 + Math.random() * 50, audioCtx.currentTime);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.02);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.02);
+            break;
+    }
+};
+
+const originalShowToast = showToast;
+showToast = (msg, isError = false) => {
+    playSound(isError ? 'error' : 'success');
+    originalShowToast(msg, isError);
+};
+
+taskInput.addEventListener('input', (e) => {
+    const vol = Math.min(0.1 + (taskInput.value.length * 0.01), 0.3);
+    playSound('type', vol);
+});
+
+taskList.addEventListener('input', (e) => {
+    if (e.target.classList.contains('edit-input')) {
+        const vol = Math.min(0.1 + (e.target.value.length * 0.01), 0.5);
+        playSound('type', vol);
+    }
+});
+
+document.addEventListener('click', (e) => {
+    if (e.target.type === 'checkbox') {
+        playSound('click');
+    }
+    
+    if (e.target.innerText === "NOW" || e.target.closest('.now-btn')) {
+        playSound('pixar');
+    }
+
+    if (e.target.closest('.task-action-btn')) {
+        playSound('success', 0.2);
+    }
+    
+    const silentBtns = ['sortAsc', 'undoBtn', 'selectAllBtn'];
+    if (silentBtns.includes(e.target.id)) {
+        playSound('success', 0.3);
+    }
+});
+
+const originalRender = renderTasks;
+renderTasks = () => {
+    originalRender();
+    if (!document.getElementById('completed-tasks-style')) {
+        const style = document.createElement('style');
+        style.id = 'completed-tasks-style';
+        style.innerHTML = `
+            .completed-text {
+                color: white !important;
+                text-shadow: 0 0 5px rgba(255,255,255,0.8);
+                transition: all 0.3s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+};
+renderTasks();
