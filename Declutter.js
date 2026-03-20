@@ -299,3 +299,327 @@ function renderTasks() {
                         border-radius: 0 !important;
                     }
                 </style>
+
+                ${isEditing ? 
+                    `<input type="text" id="edit-input-${task.id}" 
+                        class="task-edit-input"
+                        value="${task.text}" 
+                        onkeydown="if(event.key==='Enter') handleEditSave(${task.id}, this.value)"
+                        onblur="handleEditSave(${task.id}, this.value)">` 
+                    : 
+                    `<span class="task-text ${task.completed ? 'completed-text' : ''}" 
+                        ondblclick="editTask(${task.id})">
+                        ${task.text}
+                    </span>`
+                }
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="task-action-btn" onclick="editTask(${task.id})" ${isEditing ? 'disabled style="opacity:0.5"' : ''}>
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="task-action-btn" onclick="deleteTask(${task.id})" ${isEditing ? 'disabled style="opacity:0.5"' : ''}>
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        `;
+        taskList.appendChild(li);
+    });
+
+    totalCounter.innerText = tasks.length;
+    doneCounter.innerText = tasks.filter(t => t.completed).length;
+    editCounter.innerText = editedCount;
+    deleteCounter.innerText = deleteCounter.innerText = deletedCount;
+    updateEmotionalStatus();
+    localStorage.setItem('declutter_tasks', JSON.stringify(tasks));
+    localStorage.setItem('declutter_deleted', deletedCount);
+    localStorage.setItem('declutter_edited', editedCount);
+}
+
+taskList.addEventListener('dragstart', (e) => {
+    const item = e.target.closest('.task-item');
+    if (item) { draggedItemIndex = item.dataset.index; e.target.style.opacity = "0.5"; }
+});
+taskList.addEventListener('dragover', (e) => e.preventDefault());
+taskList.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const targetItem = e.target.closest('.task-item');
+    if (!targetItem || draggedItemIndex === null) return;
+    const droppedItemIndex = targetItem.dataset.index;
+    if (draggedItemIndex !== droppedItemIndex) {
+        saveToHistory();
+        const movedItem = tasks.splice(draggedItemIndex, 1)[0];
+        tasks.splice(droppedItemIndex, 0, movedItem);
+        renderTasks();
+    }
+});
+taskList.addEventListener('dragend', (e) => {
+    if (e.target.classList.contains('task-item')) e.target.style.opacity = "1";
+    draggedItemIndex = null;
+});
+
+document.getElementById('addBtn')?.addEventListener('click', addTask);
+document.getElementById('inlineAddBtn')?.addEventListener('click', addTask);
+taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTask(); });
+document.getElementById('sortAsc')?.addEventListener('click', sortTasks);
+document.getElementById('undoBtn')?.addEventListener('click', undo);
+document.getElementById('selectAllBtn')?.addEventListener('click', toggleSelectAll);
+document.getElementById('resetBtn')?.addEventListener('click', sweepCompleted);
+document.getElementById('clearAllBtn')?.addEventListener('click', resetApp);
+renderTasks();
+;
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Delete' && document.activeElement !== taskInput) {
+        const selectedTasks = tasks.filter(t => t.completed);
+        const count = selectedTasks.length;
+
+        if (count === 0) {
+            showToast("ERROR: Select tasks using checkboxes first!", true);
+            return;
+        }
+
+            if (confirm(`Are you sure do you want to delete these ${count} selected tasks?`)) {
+            saveToHistory();
+            deletedCount += count;
+            tasks = tasks.filter(t => !t.completed);
+            showToast(`SUCCESS: Removed ${count} tasks.`);
+            renderTasks();
+        }
+    }
+});
+
+let pressTimer;
+
+taskList.addEventListener('touchstart', (e) => {
+    const item = e.target.closest('.task-item');
+    if (item && !editingId) {
+        const index = item.dataset.index;
+        const id = tasks[index].id;
+        pressTimer = window.setTimeout(() => {
+            editTask(id);
+            if (window.navigator.vibrate) window.navigator.vibrate(50);
+        }, 600);
+    }
+}, { passive: true });
+
+taskList.addEventListener('touchend', () => clearTimeout(pressTimer));
+taskList.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioCtx();
+
+const playSound = (type, volume = 0.5) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+
+    switch(type) {
+        case 'success':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+            break;
+        case 'failed':
+        case 'error':
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+        break;
+        case 'pixar':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+            break;
+        case 'click':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+            break;
+        case 'type':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150 + Math.random() * 50, audioCtx.currentTime);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.02);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.02);
+            break;
+    }
+};
+
+const originalShowToast = showToast;
+showToast = (msg, isError = false) => {
+    playSound(isError ? 'error' : 'success');
+    originalShowToast(msg, isError);
+};
+
+taskInput.addEventListener('input', (e) => {
+    const vol = Math.min(0.1 + (taskInput.value.length * 0.01), 0.3);
+    playSound('type', vol);
+});
+
+taskList.addEventListener('input', (e) => {
+    if (e.target.classList.contains('edit-input')) {
+        const vol = Math.min(0.1 + (e.target.value.length * 0.01), 0.5);
+        playSound('type', vol);
+    }
+});
+
+document.addEventListener('click', (e) => {
+    if (e.target.type === 'checkbox') {
+        playSound('click');
+    }
+    
+    if (e.target.innerText === "NOW" || e.target.closest('.now-btn')) {
+        playSound('pixar');
+    }
+
+    if (e.target.closest('.task-action-btn')) {
+        playSound('success', 0.2);
+    }
+    
+    const silentBtns = ['sortAsc', 'undoBtn', 'selectAllBtn'];
+    if (silentBtns.includes(e.target.id)) {
+        playSound('success', 0.3);
+    }
+});
+
+const originalRender = renderTasks;
+renderTasks = () => {
+    originalRender();
+    if (!document.getElementById('completed-tasks-style')) {
+        const style = document.createElement('style');
+        style.id = 'completed-tasks-style';
+        style.innerHTML = `
+            .completed-text {
+                color: white !important;
+                text-shadow: 0 0 5px rgba(255,255,255,0.8);
+                transition: all 0.3s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+};
+renderTasks();
+
+(function() {
+    const dragStyle = document.createElement('style');
+    dragStyle.innerHTML = `
+        .task-item.drag-hover {
+            background-color: rgba(255, 255, 255, 0.15) !important;
+            border: 1px dashed #f2f2f2 !important;
+            transform: translateY(-2px) scale(1.01);
+            transition: transform 0.2s ease, background-color 0.2s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+    `;
+    document.head.appendChild(dragStyle);
+
+    taskList.addEventListener('dragenter', (e) => {
+        const targetItem = e.target.closest('.task-item');
+        if (targetItem && targetItem.dataset.index !== draggedItemIndex) {
+            targetItem.classList.add('drag-hover');
+        }
+    });
+
+    taskList.addEventListener('dragleave', (e) => {
+        const targetItem = e.target.closest('.task-item');
+        if (targetItem && !targetItem.contains(e.relatedTarget)) {
+            targetItem.classList.remove('drag-hover');
+        }
+    });
+
+    const cleanUpHighlights = () => {
+        document.querySelectorAll('.task-item').forEach(item => {
+            item.classList.remove('drag-hover');
+        });
+    };
+
+    taskList.addEventListener('drop', cleanUpHighlights);
+    taskList.addEventListener('dragend', cleanUpHighlights);
+})();
+
+(function() {
+    if (!document.getElementById('hero-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'hero-animation-style';
+        style.innerHTML = `
+            #heroTagline {
+                display: block;
+                transition: opacity 2.5s ease, max-height 2.5s ease, transform 2.5s ease;
+                opacity: 1;
+                max-height: 500px;
+                overflow: hidden;
+                padding-top: 30px;
+                text-align: left;
+                margin-left: 0;
+                margin-right: auto;
+            }
+
+            .hero-hidden {
+                opacity: 0;
+                max-height: 0;
+                pointer-events: none;
+                transform: translateY(-10px);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    const heroTagline = document.getElementById('heroTagline');
+    const playTadaSound = () => {
+        if (typeof audioCtx === 'undefined') return;
+        const nodes = [440, 554.37, 659.25, 880]; 
+        nodes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + (i * 0.1));
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime + (i * 0.1));
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + (i * 0.1));
+            osc.stop(audioCtx.currentTime + 1.0);
+        });
+    };
+
+    const originalRenderTasks = renderTasks;
+    renderTasks = () => {
+        originalRenderTasks(); 
+
+        if (!heroTagline) return;
+        const total = tasks.length;
+        const allDone = total > 0 && tasks.every(t => t.completed);
+
+        if (total > 0 && !allDone) {
+            heroTagline.classList.add('hero-hidden');
+        } 
+        else if (total > 0 && allDone) {
+            if (heroTagline.innerHTML !== "Congratulations!<br>You Finally Did It.") {
+                heroTagline.innerHTML = "Congratulations!<br>You Finally Did It.";
+                playTadaSound();
+            }
+            heroTagline.classList.remove('hero-hidden');
+        } 
+        else if (total === 0) {
+            heroTagline.innerHTML = "Clashing Ideas?<br>List it Out!<br>Clean Your Mind.";
+            heroTagline.classList.remove('hero-hidden');
+        }
+    };
+
+    renderTasks();
+})();
