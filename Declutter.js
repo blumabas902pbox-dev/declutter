@@ -618,3 +618,108 @@ renderTasks();
 
     renderTasks();
 })();
+
+if (!document.getElementById('declutter-dynamic-styles')) {
+    const style = document.createElement('style');
+    style.id = 'declutter-dynamic-styles';
+    style.innerHTML = `
+        .task-item {
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+            border: 2px solid transparent;
+        }
+        .task-item.drag-over {
+            border: 2px dashed #808080 !important;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            transform: scale(1.02);
+            filter: blur(0.5px);
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .completed-text {
+            color: white !important;
+            text-shadow: 0 0 8px rgba(255,255,255,0.6);
+            transition: all 0.3s ease;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+const playMagicalTada = () => {
+    if (typeof audioCtx === 'undefined' || audioCtx.state === 'suspended') return;
+    const now = audioCtx.currentTime;
+    const freqs = [587.33, 739.99, 880.00, 1174.66, 1479.98];
+    freqs.forEach((f, i) => {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, now + (i * 0.02));
+        g.gain.setValueAtTime(0.05, now + (i * 0.02));
+        g.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start(now + (i * 0.02));
+        osc.stop(now + 0.5);
+    });
+};
+
+taskList.addEventListener('dragstart', (e) => {
+    const item = e.target.closest('.task-item');
+    if (item) {
+        draggedItemIndex = item.dataset.index;
+        e.target.style.opacity = "0.4";
+    }
+});
+
+taskList.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const targetItem = e.target.closest('.task-item');
+    
+    document.querySelectorAll('.task-item').forEach(i => i.classList.remove('drag-over'));
+    
+    if (targetItem && targetItem.dataset.index !== draggedItemIndex) {
+        targetItem.classList.add('drag-over');
+    }
+});
+
+taskList.addEventListener('dragleave', (e) => {
+    const targetItem = e.target.closest('.task-item');
+    if (targetItem) targetItem.classList.remove('drag-over');
+});
+
+taskList.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const targetItem = e.target.closest('.task-item');
+    if (targetItem) targetItem.classList.remove('drag-over');
+
+    if (!targetItem || draggedItemIndex === null) return;
+    const droppedItemIndex = targetItem.dataset.index;
+
+    if (draggedItemIndex !== droppedItemIndex) {
+        saveToHistory();
+        const movedItem = tasks.splice(draggedItemIndex, 1)[0];
+        tasks.splice(droppedItemIndex, 0, movedItem);
+        
+        const lyrics = ["I polish up real nice.", "Everything is shiny and new.", "Karma is a relaxing thought."];
+        const randomLyric = lyrics[Math.floor(Math.random() * lyrics.length)];
+        showToast(`REORDERED: ${randomLyric}`);
+        
+        renderTasks();
+    }
+});
+
+taskList.addEventListener('dragend', (e) => {
+    const item = e.target.closest('.task-item');
+    if (item) item.style.opacity = "1";
+    document.querySelectorAll('.task-item').forEach(i => i.classList.remove('drag-over'));
+    draggedItemIndex = null;
+});
+
+document.addEventListener('click', (e) => {
+    if (e.target.type === 'checkbox') {
+      
+        playSound('click'); 
+        
+        if (e.target.checked) {
+            playMagicalTada();
+        }
+    }
+});
